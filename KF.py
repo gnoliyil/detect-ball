@@ -1,7 +1,12 @@
 import numpy as np
 import time, threading
+import redis
 
 class KF:
+    
+    BALL_POSITION_KEY  = 'sai2::cs225a::cv::ball_position::xyz'
+    BALL_TIMESTAMP_KEY = 'sai2::cs225a::cv::ball_position::time'
+     
     def __init__(self, mu0, sigma0, C, Q, R, g, delta_t):             # Todo: add boundary for the end condition of the KF
         """
         Initialize Kalman Filter.
@@ -15,6 +20,9 @@ class KF:
              g: Gravitational constant.
              delta_t: Time step.
         """
+        self.redis = redis.Redis(charset='utf-8', decode_responses=True)
+        self.prev_timestamp = None
+        
         self.mu = mu0
         self.sigma = sigma0
         self.Q = Q
@@ -22,7 +30,7 @@ class KF:
         self.g = g
         self.delta_t = delta_t
         self.C = C
-        self.lock = threading.lock()
+        self.lock = threading.Lock()
         self.t = 0
         
         self.A = np.array([[1., 0., 0., delta_t, 0.,      0.     ],
@@ -52,6 +60,11 @@ class KF:
                 self.sigma = self.A.dot(self.sigma).dot(self.A.T) + self.Q
                 print('One prediction step completed at time {}s.'.format(self.t))
             finally:
+    return str_to_vec(r.get(key_name))
+
+def vec_to_str(v):
+    return '[' + ','.join(x for x in v) + ']'
+    
                 self.lock.release()
                 
     def update(self, y):
@@ -85,5 +98,30 @@ class KF:
             sigma_predicted = self.A.dot(sigma_predicted).dot(self.A.T) + self.Q
         return mu_predicted, sigma_predicted
             
+    
+    def _getTimeStampFromRedis(self):
+        return float(self.redis.get(self.BALL_TIMESTAMP_KEY))
+        
+    def _getPositionFromRedis(self):
+        x = self.redis.get(SELF.BALL_POSITION_KEY)
+        return np.array([float(x) for x in s[1:-1].split(',')])
+        
+    def newPositionOrNone(self):
+        new_ts = self._getTimeStampFromRedis()
+        if new_ts != self.prev_timestamp:
+            pos = self._getPositionFromRedis()
+            self.prev_timestamp = new_ts
+            return pos
+        else:
+            return None
             
-            
+    def mainLoop(self):
+        while True:
+            new_position_maybe = self.newPositionOrNone()
+            if new_position_maybe is not None:
+                self.update(new_position_maybe)
+                
+                
+if __name__ == "__main__":
+    kf = KF(blabla) 
+    kf.mainLoop()
