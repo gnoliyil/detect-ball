@@ -50,22 +50,11 @@ class KF:
         t.start()
         print('Start predicting at time {}s.'.format(self.t))
     
-    def keepPredicting(self):
-       while True:                                                # this should be set as the end condition 
-            time.sleep(self.delta_t)
-            self.lock.acquire()
-            try:
-                self.t += self.delta_t
-                self.mu = self.A.dot(self.mu) + self.u
-                self.sigma = self.A.dot(self.sigma).dot(self.A.T) + self.Q
-                print('One prediction step completed at time {}s.'.format(self.t))
-            finally:
-    return str_to_vec(r.get(key_name))
-
-def vec_to_str(v):
-    return '[' + ','.join(x for x in v) + ']'
-    
-                self.lock.release()
+    def predict(self):
+        self.t += self.delta_t
+        self.mu = self.A.dot(self.mu) + self.u
+        self.sigma = self.A.dot(self.sigma).dot(self.A.T) + self.Q
+        print('One prediction step completed at time {}s.'.format(self.t))
                 
     def update(self, y):
         """
@@ -74,14 +63,10 @@ def vec_to_str(v):
         Args:
              y: Measurement.
         """
-        self.lock.acquire()
-        try:
-            Kt = self.sigma * self.C.T * np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R)
-            self.mu = self.mu + Kt.dot(y - self.C.dot(self.mu))
-            self.sigma = self.sigma - Kt.dot(self.C).dot(self.sigma)
-            print('One update step completed at time {}s.'.format(self.t))
-        finally:
-            self.lock.release()
+        Kt = self.sigma * self.C.T * np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R)
+        self.mu = self.mu + Kt.dot(y - self.C.dot(self.mu))
+        self.sigma = self.sigma - Kt.dot(self.C).dot(self.sigma)
+        print('One update step completed at time {}s.'.format(self.t))
                 
     def predictFinalPosition(self,):
         """
@@ -93,7 +78,7 @@ def vec_to_str(v):
         """
         mu_predicted = self.mu
         sigma_predicted = self.sigma
-        while True:                                                 # this should be set as the end condition
+        while self.mu[2, 0] > 0:                                                 # this should be set as the end condition
             mu_predicted = self.A.dot(mu_predicted) + self.u
             sigma_predicted = self.A.dot(sigma_predicted).dot(self.A.T) + self.Q
         return mu_predicted, sigma_predicted
@@ -117,11 +102,15 @@ def vec_to_str(v):
             
     def mainLoop(self):
         while True:
+            time.sleep(self.delta_t)
+            self.predict()
             new_position_maybe = self.newPositionOrNone()
             if new_position_maybe is not None:
                 self.update(new_position_maybe)
                 
                 
 if __name__ == "__main__":
-    kf = KF(blabla) 
+    kf = KF(mu0=np.zeros((6,1)), sigma0=0.1*np.eye(6), 
+            C=np.hstack((np.eye(3), np.zeros((3, 3)))), Q=0.1*np.eye(6),
+	    R=0.1*np.eye(6), g=-9.8, delta_t=0.1)
     kf.mainLoop()
