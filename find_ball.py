@@ -195,6 +195,6 @@ if __name__ == "__main__":
             bp_str = [x, y, z]
             redis.set(BALL_POSITION_KEY, vec_to_str(bp_str))
             redis.set(BALL_TIMESTAMP_KEY, str(time.time()))
-        except Excpetion as e:
+        except Exception as e:
             logging.error(e)
 
