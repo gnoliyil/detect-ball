@@ -25,6 +25,8 @@ def key_to_vec(r, key_name):
 def vec_to_str(v):
     return '[' + ','.join(x for x in v) + ']'
 
+MAX_ALLOWED_DEPTH = 4.0
+
 # https://jekel.me/2015/Least-Squares-Sphere-Fit/
 def sphereFit(spX,spY,spZ):
     #   Assemble the A matrix
@@ -48,7 +50,7 @@ def sphereFit(spX,spY,spZ):
 
     return radius, C[0], C[1], C[2]
 
-reference_color = np.array([122, 120, 35]) / 255.
+reference_color = np.array([178, 181, 60]) / 255.
 hue = matplotlib.colors.rgb_to_hsv(reference_color)[0]
 
 class FindBall():
