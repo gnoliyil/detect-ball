@@ -54,7 +54,7 @@ class KF:
         self.t += self.delta_t
         self.mu = self.A.dot(self.mu) + self.u
         self.sigma = self.A.dot(self.sigma).dot(self.A.T) + self.Q
-        print('One prediction step completed at time {}s.'.format(self.t))
+#         print('One prediction step completed at time {}s.'.format(self.t))
                 
     def update(self, y):
         """
@@ -63,10 +63,15 @@ class KF:
         Args:
              y: Measurement.
         """
-        Kt = self.sigma * self.C.T * np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R)
+#         print(self.sigma.shape)
+#         print(self.C.shape)
+#         print(self.R.shape)
+#         temp = self.C.dot(self.sigma).dot(self.C.T) + self.R
+#         print(temp.shape)
+        Kt = self.sigma.dot(self.C.T).dot(np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R))
         self.mu = self.mu + Kt.dot(y - self.C.dot(self.mu))
         self.sigma = self.sigma - Kt.dot(self.C).dot(self.sigma)
-        print('One update step completed at time {}s.'.format(self.t))
+#         print('One update step completed at time {}s.'.format(self.t))
                 
     def predictFinalPosition(self,):
         """
@@ -88,7 +93,7 @@ class KF:
         return float(self.redis.get(self.BALL_TIMESTAMP_KEY))
         
     def _getPositionFromRedis(self):
-        x = self.redis.get(SELF.BALL_POSITION_KEY)
+        s = self.redis.get(self.BALL_POSITION_KEY)
         return np.array([float(x) for x in s[1:-1].split(',')])
         
     def newPositionOrNone(self):
@@ -106,11 +111,15 @@ class KF:
             self.predict()
             new_position_maybe = self.newPositionOrNone()
             if new_position_maybe is not None:
-                self.update(new_position_maybe)
+                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
+                print(new_pos)
+                self.update(new_pos)
                 
                 
 if __name__ == "__main__":
     kf = KF(mu0=np.zeros((6,1)), sigma0=0.1*np.eye(6), 
             C=np.hstack((np.eye(3), np.zeros((3, 3)))), Q=0.1*np.eye(6),
-	    R=0.1*np.eye(6), g=-9.8, delta_t=0.1)
+	    R=0.1*np.eye(3), g=-9.8, delta_t=0.1)
     kf.mainLoop()
+
+    #x, z, -y

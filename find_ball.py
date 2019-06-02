@@ -115,3 +115,15 @@ class FindBall():
         r, cx, cy, cz = sphereFit(pc_filtered[:, 0], pc_filtered[:, 1], pc_filtered[:, 2])
         return r[0], cx[0], cy[0], cz[0]
 
+if __name__ == "__main__":
+    BALL_POSITION_KEY  = 'sai2::cs225a::cv::ball_position::xyz'
+    BALL_TIMESTAMP_KEY = 'sai2::cs225a::cv::ball_position::time'
+    
+    redis = redis.Redis(charset='utf-8', decode_responses=True)
+    fb = FindBall()
+    while True:
+        redis.set(BALL_TIMESTAMP_KEY, str(time.time()))
+        ball_pos = fb.find_ball()
+        print(ball_pos)
+        bp_str = [str(x) for x in ball_pos]
+        redis.set(BALL_POSITION_KEY, vec_to_str(bp_str))
