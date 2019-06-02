@@ -195,9 +195,10 @@ if __name__ == "__main__":
     while True:
         try:
             r, x, y, z, type_ = fb.find_ball()
+            print(r, x, y, z, type(r), type(x), type(y), type(z))
             logging.info("Ball found! Radius = {:.3f}, [x, y, z] = [{:.3f}, {:.3f}, {:.3f}]".format(r, x, y, z))
 
-            bp_str = [x, y, z]
+            bp_str = [str(x), str(y), str(z)]
             redis.set(BALL_POSITION_KEY, vec_to_str(bp_str))
             redis.set(BALL_TIMESTAMP_KEY, str(time.time()))
         except Exception as e:
