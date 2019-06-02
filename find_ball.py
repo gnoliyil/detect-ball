@@ -202,4 +202,5 @@ if __name__ == "__main__":
             redis.set(BALL_TIMESTAMP_KEY, str(time.time()))
         except Exception as e:
             logging.error(e)
+            redis.set(BALL_POSITION_KEY, vec_to_str(["0","0","-1"]))
 

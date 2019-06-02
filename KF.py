@@ -86,13 +86,12 @@ class KF:
             mu_predicted: Predicted state of the ball.
             sigma_predicted: Prediction error covariance.
         """
-        mu_predicted = self.mu
-        # sigma_predicted = self.sigma
-        while mu_predicted[2, 0] > -0.4:                                                 # this should be set as the end condition
-            mu_predicted = self.A.dot(mu_predicted) + self.u
-            # print(mu_predicted)
-            # sigma_predicted = self.A.dot(sigma_predicted).dot(self.A.T) + self.Q
-        return mu_predicted#, sigma_predicted
+        ground = -0.5
+        # print(self.mu[5] ** 2 - 2 * self.g * (self.mu[2] - ground))
+        # print(self.mu[2])
+        t = (- self.mu[5, 0] - np.sqrt(self.mu[5, 0] ** 2 - 2 * self.g * (self.mu[2, 0] - ground))) / self.g
+        final_position = [self.mu[0, 0] + self.mu[3, 0] * t, self.mu[1, 0] + self.mu[4, 0] * t, 0]
+        return final_position
             
     
     def _getTimeStampFromRedis(self):
@@ -104,24 +103,49 @@ class KF:
         
     def newPositionOrNone(self):
         new_ts = self._getTimeStampFromRedis()
-        if new_ts != self.prev_timestamp:
-            pos = self._getPositionFromRedis()
+        pos = self._getPositionFromRedis()
+        if new_ts != self.prev_timestamp and pos[2] > 0:
+            
             self.prev_timestamp = new_ts
-            return pos
+            return pos, new_ts
         else:
-            return None
+            return None, None
             
     def mainLoop(self):
+    	# started = False;
+        numfound = 0
+        while numfound < 2:
+            new_position_maybe, ts = self.newPositionOrNone()
+            if new_position_maybe is not None:
+                numfound += 1
+                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]]) 
+                # print(new_pos)
+                if numfound == 1:
+            	    pos1 = new_pos
+            	    ts0 = ts
+
+                if numfound == 2:
+            	    vel2 = (new_pos - pos1) / (ts - ts0)
+            	    self.mu[:3] = new_pos.reshape(3,1)
+            	    self.mu[3:] = vel2.reshape(3,1)
+            	
+
+        # print("here")    	
         while True:
             time.sleep(self.delta_t)
             self.predict()
-            new_position_maybe = self.newPositionOrNone()
+            new_position_maybe, ts = self.newPositionOrNone()
             if new_position_maybe is not None:
-                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
-                print(new_pos)
-                # self.update(new_pos)
+            	# started = True
+            	
+                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])                	
+                print("camera", new_pos)
+                self.update(new_pos)
                 m_p = self.predictFinalPosition()
-                # print(m_p[:2])
+                # print(new_pos)
+                print("predict", m_p[:3])
+            
+            
                 
                 
 if __name__ == "__main__":
