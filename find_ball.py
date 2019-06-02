@@ -49,7 +49,7 @@ def sphereFit(spX,spY,spZ):
     radius = np.sqrt(t)
 
     try:
-        return radius[0], C[0][0], C[1][0], C[2][0]
+        return float(radius[0]), float(C[0][0]), float(C[1][0]), float(C[2][0])
     except:
         return radius, C[0], C[1], C[2]
 
@@ -195,7 +195,6 @@ if __name__ == "__main__":
     while True:
         try:
             r, x, y, z, type_ = fb.find_ball()
-            print(r, x, y, z, type(r), type(x), type(y), type(z))
             logging.info("Ball found! Radius = {:.3f}, [x, y, z] = [{:.3f}, {:.3f}, {:.3f}]".format(r, x, y, z))
 
             bp_str = [str(x), str(y), str(z)]
