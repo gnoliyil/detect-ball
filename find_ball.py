@@ -48,7 +48,10 @@ def sphereFit(spX,spY,spZ):
     t = (C[0]*C[0])+(C[1]*C[1])+(C[2]*C[2])+C[3]
     radius = np.sqrt(t)
 
-    return radius, C[0], C[1], C[2]
+    try:
+        return radius[0], C[0][0], C[1][0], C[2][0]
+    except:
+        return radius, C[0], C[1], C[2]
 
 reference_color = np.array([178, 181, 60]) / 255.
 hue = matplotlib.colors.rgb_to_hsv(reference_color)[0]
