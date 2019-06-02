@@ -68,9 +68,14 @@ class KF:
 #         print(self.R.shape)
 #         temp = self.C.dot(self.sigma).dot(self.C.T) + self.R
 #         print(temp.shape)
+
         Kt = self.sigma.dot(self.C.T).dot(np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R))
-        self.mu = self.mu + Kt.dot(y - self.C.dot(self.mu))
+        # print(self.mu.shape, self.sigma.shape, Kt.shape)
+        # print(y.shape, self.C.dot(self.mu).shape)
+        self.mu = self.mu + Kt.dot(y.reshape(3,1) - self.C.dot(self.mu))
         self.sigma = self.sigma - Kt.dot(self.C).dot(self.sigma)
+        # print(self.mu.shape, self.sigma.shape, Kt.shape)
+
 #         print('One update step completed at time {}s.'.format(self.t))
                 
     def predictFinalPosition(self,):
@@ -82,11 +87,12 @@ class KF:
             sigma_predicted: Prediction error covariance.
         """
         mu_predicted = self.mu
-        sigma_predicted = self.sigma
-        while self.mu[2, 0] > 0:                                                 # this should be set as the end condition
+        # sigma_predicted = self.sigma
+        while mu_predicted[2, 0] > -0.4:                                                 # this should be set as the end condition
             mu_predicted = self.A.dot(mu_predicted) + self.u
-            sigma_predicted = self.A.dot(sigma_predicted).dot(self.A.T) + self.Q
-        return mu_predicted, sigma_predicted
+            # print(mu_predicted)
+            # sigma_predicted = self.A.dot(sigma_predicted).dot(self.A.T) + self.Q
+        return mu_predicted#, sigma_predicted
             
     
     def _getTimeStampFromRedis(self):
@@ -113,13 +119,17 @@ class KF:
             if new_position_maybe is not None:
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
                 print(new_pos)
-                self.update(new_pos)
+                # self.update(new_pos)
+                m_p = self.predictFinalPosition()
+                # print(m_p[:2])
                 
                 
 if __name__ == "__main__":
-    kf = KF(mu0=np.zeros((6,1)), sigma0=0.1*np.eye(6), 
+    m0 = np.array([-1.13653743,  2.20493359,  0.0318083, 1, 0, 0.5])
+
+    kf = KF(mu0=m0.reshape(6,1), sigma0=0.1*np.eye(6), 
             C=np.hstack((np.eye(3), np.zeros((3, 3)))), Q=0.1*np.eye(6),
-	    R=0.1*np.eye(3), g=-9.8, delta_t=0.1)
+	    R=0.1*np.eye(3), g=-9.8, delta_t=0.01)
     kf.mainLoop()
 
     #x, z, -y
