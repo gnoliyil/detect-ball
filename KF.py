@@ -90,6 +90,7 @@ class KF:
         # print(self.mu[5] ** 2 - 2 * self.g * (self.mu[2] - ground))
         # print(self.mu[2])
         t = (- self.mu[5, 0] - np.sqrt(self.mu[5, 0] ** 2 - 2 * self.g * (self.mu[2, 0] - ground))) / self.g
+        print("t: ", t)
         final_position = [self.mu[0, 0] + self.mu[3, 0] * t, self.mu[1, 0] + self.mu[4, 0] * t, 0]
         return final_position
             
@@ -138,9 +139,10 @@ class KF:
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])                	
                 print("camera", new_pos)
                 self.update(new_pos)
+                print("vx: ", self.mu[3])
                 m_p = self.predictFinalPosition()
                 # print(new_pos)
-                print("predict", m_p[:3])
+                # print("predict", m_p[:3])
             
             
                 
