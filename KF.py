@@ -113,7 +113,7 @@ class KF:
             return None, None
             
     def mainLoop(self):
-    	numfound = 0
+        numfound = 0
         while numfound < 2:
             new_position_maybe, ts = self.newPositionOrNone()
             if new_position_maybe is not None:
