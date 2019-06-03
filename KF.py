@@ -113,14 +113,12 @@ class KF:
             return None, None
             
     def mainLoop(self):
-    	# started = False;
-        numfound = 0
+    	numfound = 0
         while numfound < 2:
             new_position_maybe, ts = self.newPositionOrNone()
             if new_position_maybe is not None:
                 numfound += 1
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]]) 
-                # print(new_pos)
                 if numfound == 1:
             	    pos1 = new_pos
             	    ts0 = ts
@@ -129,16 +127,15 @@ class KF:
             	    vel2 = (new_pos - pos1) / (ts - ts0)
             	    self.mu[:3] = new_pos.reshape(3,1)
             	    self.mu[3:] = vel2.reshape(3,1)
-            	
+                    self.t = ts
 
         # print("here")    	
         while True:
-            time.sleep(self.delta_t)
-            self.predict()
             new_position_maybe, ts = self.newPositionOrNone()
             if new_position_maybe is not None:
             	# started = True
-            	
+            	while self.t < ts:
+                    self.predict()  
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])                	
                 print("camera", new_pos)
                 self.update(new_pos)
