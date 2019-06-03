@@ -119,13 +119,13 @@ class KF:
                 numfound += 1
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]]) 
                 if numfound == 1:
-            	    pos1 = new_pos
-            	    ts0 = ts
+                    pos1 = new_pos
+                    ts0 = ts
 
                 if numfound == 2:
-            	    vel2 = (new_pos - pos1) / (ts - ts0)
-            	    self.mu[:3] = new_pos.reshape(3,1)
-            	    self.mu[3:] = vel2.reshape(3,1)
+                    vel2 = (new_pos - pos1) / (ts - ts0)
+                    self.mu[:3] = new_pos.reshape(3,1)
+                    self.mu[3:] = vel2.reshape(3,1)
                     self.t = ts
 
         # print("here")    	
