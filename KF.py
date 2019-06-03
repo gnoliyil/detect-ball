@@ -120,23 +120,23 @@ class KF:
                 numfound += 1
                 new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]]) 
                 if numfound == 1:
-            	    pos1 = new_pos
-            	    ts0 = ts
+                    pos1 = new_pos
+                    ts0 = ts
 
                 if numfound == 2:
-            	    vel2 = (new_pos - pos1) / (ts - ts0)
-            	    self.mu[:3] = new_pos.reshape(3,1)
-            	    self.mu[3:] = vel2.reshape(3,1)
+                    vel2 = (new_pos - pos1) / (ts - ts0)
+                    self.mu[:3] = new_pos.reshape(3,1)
+                    self.mu[3:] = vel2.reshape(3,1)
                     self.t = ts
 
-        # print("here")    	
+        # print("here")        
         while True:
             new_position_maybe, ts = self.newPositionOrNone()
             if new_position_maybe is not None:
-            	# started = True
-            	while self.t < ts:
-                    self.predict()  
-                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])                	
+                # started = True
+                while self.t < ts:
+                    self.predict()
+                    new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
                 print("camera", new_pos)
                 self.update(new_pos)
                 print("vx: ", self.mu[3])
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
     kf = KF(mu0=m0.reshape(6,1), sigma0=0.1*np.eye(6), 
             C=np.hstack((np.eye(3), np.zeros((3, 3)))), Q=0.1*np.eye(6),
-	    R=0.1*np.eye(3), g=-9.8, delta_t=0.01)
+        R=0.1*np.eye(3), g=-9.8, delta_t=0.01)
     kf.mainLoop()
 
     #x, z, -y
