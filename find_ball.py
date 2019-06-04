@@ -54,13 +54,35 @@ def sphereFit(spX,spY,spZ):
         return radius, C[0], C[1], C[2]
 
 reference_color = np.array([178, 181, 60]) / 255.
+reference_color_dark = np.array([171, 174, 102]) / 255.
 hue = matplotlib.colors.rgb_to_hsv(reference_color)[0]
+hue_dark, sat_dark, val_dark = matplotlib.colors.rgb_to_hsv(reference_color)
 
 class FindBall():
 
-    def __init__(self):
-        pass
-
+    def __init__(self, save=False):
+        self.rgb = []
+        self.depth = []
+        self.balls = []
+        self.save = save
+        self.frames = 0
+    
+    def save(self, rgb_dir='frame', depth_dir='depth'):
+        if not os.path.exists(rgb_dir):
+            os.makedirs(rgb_dir)
+        if not os.path.exists(depth_dir):
+            os.makedirs(depth_dir)
+            
+        for i in range(self.frames):
+            if self.balls[i] is not None:
+                r, x, y, z, t = self.balls[i]
+                u, v = self.to_uv(x, y, z)
+                if t == 'm':
+                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (255, 0, 0), thickness=6).get()
+                else:
+                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (0, 0, 255), thickness=6).get()
+            cv2.imwrite('{}/frame{:03d}.jpg'.format(rgb_dir, i), self.rgb[i])
+            cv2.imwrite('{}/frame{:03d}.jpg'.format(depth_dir, i), self.depth[i])
 
     def get_depth(self):
         """
@@ -81,8 +103,11 @@ class FindBall():
 
         height, width = hsv.shape[0], hsv.shape[1]
         grid = np.zeros((height, width), dtype=np.uint8)
-        grid[(hue_hsv < (hue + 15 / 360.)) & (hue_hsv > (hue - 25 / 360.)) & \
-            (sat_hsv > 0.4) & (bright_hsv > 0.35)] = 255
+        grid[(hue_hsv < (hue + 10 / 360.)) & (hue_hsv > (hue - 25 / 360.)) & \
+             (sat_hsv > 0.4) & (bright_hsv > 0.35)] = 255
+
+        grid[(hue_hsv < (hue_dark + 15 / 360.)) & (hue_hsv > (hue_dark - 25 / 360.)) & \
+             (bright_hsv > 0.35)] = 255
         return grid
 
     def to_xyz(self, rgb, depth):
@@ -95,6 +120,11 @@ class FindBall():
         xyz = np.hstack([x, y, z])
         xyz = xyz.astype(np.float32)
         return xyz[xyz[:, 2] > 0]
+    
+    def to_uv(x, y, z):
+        u = fx * x / z + cx
+        v = fy * y / z + cy
+        return u, v
 
     def find_contour(self, mask, rgb):
         contours = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -144,12 +174,8 @@ class FindBall():
         valid_mask = sqdist.max(axis=-1) < 1e-2
         pc_filtered = pc[valid_mask]
         return pc_filtered
-
-    def find_ball(self, image=None, depth=None):
-        if image is None or depth is None:
-            image = self.get_video()
-            depth = self.get_depth() / 1000
-
+    
+    def find_ball_impl(self, image, depth):
         color_mask = self.find_color_pixel_mask(image)
         center, radius = self.find_contour(color_mask, image)
         fg_mask = self.get_foreground_from_mask(center, radius * 1.5, depth)
@@ -163,14 +189,6 @@ class FindBall():
 
         pc_mask = self.to_xyz(fg_mask, depth)
         pc_color = self.to_xyz(np.argwhere(mask_ball > 0), depth)
-
-        # # Used for debugging:
-        # mask_fg = np.zeros((480, 640))
-        # for x,y in fg_mask: mask_fg[x, y] = 0.5
-        # for x,y in np.argwhere(mask_ball > 0): mask_fg[x, y] += 0.5
-        # plt.imshow(mask_fg, cmap='gist_rainbow', alpha=0.5)
-        # plt.imshow(rgb, alpha=0.5)
-        # plt.imshow(depth, alpha=0.5)
 
         rm, cxm, cym, czm = sphereFit(pc_mask[:, 0], pc_mask[:, 1], pc_mask[:, 2])
         rc, cxc, cyc, czc = sphereFit(pc_color[:, 0], pc_color[:, 1], pc_color[:, 2])
@@ -186,12 +204,31 @@ class FindBall():
             if rm <= rc: return rm, cxm, cym, czm, 'm'
         raise Exception("ball not found: ball size invalid!")
 
+    def find_ball(self, image=None, depth=None):
+        if image is None or depth is None:
+            image = self.get_video()
+            depth = self.get_depth() / 1000
+
+        if self.save:
+            self.rgb.append(image.copy())
+            self.depth.append(depth.copy())
+            self.balls.append(None)
+            self.frames += 1
+        
+        r, x, y, z, t = self.find_ball_impl(image, depth)
+        
+        if self.save:
+            self.balls[-1] = (r, x, y, z, t)
+            
+        return r, x, y, z, t
+        
+
 if __name__ == "__main__":
     BALL_POSITION_KEY  = 'sai2::cs225a::cv::ball_position::xyz'
     BALL_TIMESTAMP_KEY = 'sai2::cs225a::cv::ball_position::time'
 
     redis = redis.Redis(charset='utf-8', decode_responses=True)
-    fb = FindBall()
+    fb = FindBall(save=True)
     while True:
         try:
             r, x, y, z, type_ = fb.find_ball()
@@ -200,7 +237,11 @@ if __name__ == "__main__":
             bp_str = [str(x), str(y), str(z)]
             redis.set(BALL_POSITION_KEY, vec_to_str(bp_str))
             redis.set(BALL_TIMESTAMP_KEY, str(time.time()))
+        except KeyboardInterrupt:
+            break
         except Exception as e:
             logging.error(e)
             redis.set(BALL_POSITION_KEY, vec_to_str(["0","0","-1"]))
 
+    if fb.save:
+        fb.save(depth_dir='depth', rgb_dir='frame')
