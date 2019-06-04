@@ -54,6 +54,8 @@ class KF:
         self.t += self.delta_t
         self.mu = self.A.dot(self.mu) + self.u
         self.sigma = self.A.dot(self.sigma).dot(self.A.T) + self.Q
+        if self.mu[2] < -0.4:
+            self.mu[5] = -self.mu[5]
 #         print('One prediction step completed at time {}s.'.format(self.t))
                 
     def update(self, y):
@@ -67,7 +69,7 @@ class KF:
 #         print(self.C.shape)
 #         print(self.R.shape)
 #         temp = self.C.dot(self.sigma).dot(self.C.T) + self.R
-#         print(temp.shape)
+#         print(temp.shape)0.60133852198801440.6013385219880144
 
         Kt = self.sigma.dot(self.C.T).dot(np.linalg.inv(self.C.dot(self.sigma).dot(self.C.T) + self.R))
         # print(self.mu.shape, self.sigma.shape, Kt.shape)
@@ -76,17 +78,17 @@ class KF:
         self.sigma = self.sigma - Kt.dot(self.C).dot(self.sigma)
         # print(self.mu.shape, self.sigma.shape, Kt.shape)
 
-#         print('One update step completed at time {}s.'.format(self.t))
+#         print('One update step completed at time {}s.'.forma0.6013385219880144t(self.t))
                 
     def predictFinalPosition(self,):
         """
         Predict the state of the ball when it reaches the plane of the goal line.
 
-        Returns:
+        Returns:0.6013385219880144
             mu_predicted: Predicted state of the ball.
             sigma_predicted: Prediction error covariance.
         """
-        ground = -0.5
+        ground = -0.4
         # print(self.mu[5] ** 2 - 2 * self.g * (self.mu[2] - ground))
         # print(self.mu[2])
         t = (- self.mu[5, 0] - np.sqrt(self.mu[5, 0] ** 2 - 2 * self.g * (self.mu[2, 0] - ground))) / self.g
@@ -136,13 +138,13 @@ class KF:
                 # started = True
                 while self.t < ts:
                     self.predict()
-                    new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
+                new_pos = np.array([new_position_maybe[0], new_position_maybe[2],-new_position_maybe[1]])
                 print("camera", new_pos)
                 self.update(new_pos)
-                print("vx: ", self.mu[3])
+                # print("vx: ", self.mu[3])
                 m_p = self.predictFinalPosition()
                 # print(new_pos)
-                # print("predict", m_p[:3])
+                print("predict", m_p[:3])
             
             
                 
