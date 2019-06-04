@@ -1,3 +1,4 @@
+import os 
 import logging
 import cv2
 import numpy as np
@@ -67,7 +68,7 @@ class FindBall():
         self.save = save
         self.frames = 0
     
-    def save(self, rgb_dir='frame', depth_dir='depth'):
+    def save_to_dir(self, rgb_dir='frame', depth_dir='depth'):
         if not os.path.exists(rgb_dir):
             os.makedirs(rgb_dir)
         if not os.path.exists(depth_dir):
@@ -78,11 +79,15 @@ class FindBall():
                 r, x, y, z, t = self.balls[i]
                 u, v = self.to_uv(x, y, z)
                 if t == 'm':
-                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (255, 0, 0), thickness=6).get()
+                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (255, 0, 0), thickness=6)
                 else:
-                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (0, 0, 255), thickness=6).get()
+                    self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (0, 0, 255), thickness=6)
             cv2.imwrite('{}/frame{:03d}.jpg'.format(rgb_dir, i), self.rgb[i])
-            cv2.imwrite('{}/frame{:03d}.jpg'.format(depth_dir, i), self.depth[i])
+          
+            depth_image = self.depth[i] * 60.0
+            depth_image = depth_image.astype(dtype=np.uint8)
+            depth_color = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+            cv2.imwrite('{}/frame{:03d}.jpg'.format(depth_dir, i), depth_color)
 
     def get_depth(self):
         """
@@ -121,7 +126,9 @@ class FindBall():
         xyz = xyz.astype(np.float32)
         return xyz[xyz[:, 2] > 0]
     
-    def to_uv(x, y, z):
+    def to_uv(self, x, y, z):
+        fx, fy = 529.215, 525.5639
+        cx, cy = 328.942, 267.480
         u = fx * x / z + cx
         v = fy * y / z + cy
         return u, v
@@ -192,8 +199,8 @@ class FindBall():
 
         rm, cxm, cym, czm = sphereFit(pc_mask[:, 0], pc_mask[:, 1], pc_mask[:, 2])
         rc, cxc, cyc, czc = sphereFit(pc_color[:, 0], pc_color[:, 1], pc_color[:, 2])
-        rm_valid = rm > 0.01 and rm < 0.3
-        rc_valid = rc > 0.01 and rc < 0.3
+        rm_valid = rm > 0.01 and rm < 0.4
+        rc_valid = rc > 0.01 and rc < 0.4
 
         if rm_valid and not rc_valid:
             return rm, cxm, cym, czm, 'm'
@@ -232,7 +239,7 @@ if __name__ == "__main__":
     while True:
         try:
             r, x, y, z, type_ = fb.find_ball()
-            logging.info("Ball found! Radius = {:.3f}, [x, y, z] = [{:.3f}, {:.3f}, {:.3f}]".format(r, x, y, z))
+            logging.warning("Ball found! Radius = {:.3f}, [x, y, z] = [{:.3f}, {:.3f}, {:.3f}]".format(r, x, y, z))
 
             bp_str = [str(x), str(y), str(z)]
             redis.set(BALL_POSITION_KEY, vec_to_str(bp_str))
@@ -243,5 +250,7 @@ if __name__ == "__main__":
             logging.error(e)
             redis.set(BALL_POSITION_KEY, vec_to_str(["0","0","-1"]))
 
+    print('save start')
     if fb.save:
-        fb.save(depth_dir='depth', rgb_dir='frame')
+        fb.save_to_dir(depth_dir='depth', rgb_dir='frame')
+    print('save ends')
