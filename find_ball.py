@@ -56,8 +56,10 @@ def sphereFit(spX,spY,spZ):
 
 reference_color = np.array([178, 181, 60]) / 255.
 reference_color_dark = np.array([171, 174, 102]) / 255.
+reference_color_3 = np.array([151, 145, 118]) / 255.
 hue = matplotlib.colors.rgb_to_hsv(reference_color)[0]
-hue_dark, sat_dark, val_dark = matplotlib.colors.rgb_to_hsv(reference_color)
+hue_dark, sat_dark, val_dark = matplotlib.colors.rgb_to_hsv(reference_color_dark)
+hue_3, sat_3, val_3 = matplotlib.colors.rgb_to_hsv(reference_color_3)
 
 class FindBall():
 
@@ -65,6 +67,7 @@ class FindBall():
         self.rgb = []
         self.depth = []
         self.balls = []
+        self.uv = []
         self.save = save
         self.frames = 0
     
@@ -82,6 +85,10 @@ class FindBall():
                     self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (255, 0, 0), thickness=6)
                 else:
                     self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (0, 0, 255), thickness=6)
+            if self.uv[i] is not None:
+                v, u = self.uv[i]
+                self.rgb[i] = cv2.drawMarker(self.rgb[i], (int(u), int(v)), (0, 0, 0), cv2.MARKER_TRIANGLE_UP, thickness=6)
+
             cv2.imwrite('{}/frame{:03d}.jpg'.format(rgb_dir, i), self.rgb[i])
           
             depth_image = self.depth[i] * 60.0
@@ -111,8 +118,9 @@ class FindBall():
         grid[(hue_hsv < (hue + 10 / 360.)) & (hue_hsv > (hue - 25 / 360.)) & \
              (sat_hsv > 0.4) & (bright_hsv > 0.35)] = 255
 
-        grid[(hue_hsv < (hue_dark + 15 / 360.)) & (hue_hsv > (hue_dark - 25 / 360.)) & \
-             (bright_hsv > 0.35)] = 255
+        grid[(hue_hsv < (hue_dark + 20 / 360.)) & (hue_hsv > (hue_dark - 25 / 360.)) & \
+             (bright_hsv > 0.25)] = 255
+
         return grid
 
     def to_xyz(self, rgb, depth):
@@ -164,7 +172,7 @@ class FindBall():
         positions = np.argwhere(mask > 0)
         sub_depth = np.array([subimg[u, v] for u, v in positions]).reshape(-1, 1)
         if len(positions) > 0:
-            kmeans = KMeans(n_clusters=2, random_state=0).fit(sub_depth)
+            kmeans = KMeans(n_clusters=2, random_state=0, max_iter=10).fit(sub_depth)
             argmin = np.argmin(kmeans.cluster_centers_)
             return positions[kmeans.labels_ == argmin] + [y-radius, x-radius]
         else:
@@ -188,14 +196,18 @@ class FindBall():
         fg_mask = self.get_foreground_from_mask(center, radius * 1.5, depth)
         mask_ball = self.get_mask_ball(color_mask, center, radius, depth)
 
+
         if fg_mask is None or mask_ball is None:
             msg = ""
             if fg_mask is None: msg += "fg_mask is None "
             if mask_ball is None: msg += "mask_ball is None "
             raise Exception("ball not found: {}".format(msg))
+        
+        mask_ball_uv = np.argwhere(mask_ball > 0)
+        capture_uv = np.mean(mask_ball_uv, axis=0).tolist()
 
         pc_mask = self.to_xyz(fg_mask, depth)
-        pc_color = self.to_xyz(np.argwhere(mask_ball > 0), depth)
+        pc_color = self.to_xyz(mask_ball_uv, depth)
 
         rm, cxm, cym, czm = sphereFit(pc_mask[:, 0], pc_mask[:, 1], pc_mask[:, 2])
         rc, cxc, cyc, czc = sphereFit(pc_color[:, 0], pc_color[:, 1], pc_color[:, 2])
@@ -203,12 +215,12 @@ class FindBall():
         rc_valid = rc > 0.01 and rc < 0.4
 
         if rm_valid and not rc_valid:
-            return rm, cxm, cym, czm, 'm'
+            return rm, cxm, cym, czm, 'm', capture_uv
         if rc_valid and not rm_valid:
-            return rc, cxc, cyc, czc, 'c'
+            return rc, cxc, cyc, czc, 'c', capture_uv
         if rc_valid and rm_valid:
-            if rc < rm: return rc, cxc, cyc, czc, 'c'
-            if rm <= rc: return rm, cxm, cym, czm, 'm'
+            if rc < rm: return rc, cxc, cyc, czc, 'c', capture_uv
+            if rm <= rc: return rm, cxm, cym, czm, 'm', capture_uv
         raise Exception("ball not found: ball size invalid!")
 
     def find_ball(self, image=None, depth=None):
@@ -220,12 +232,14 @@ class FindBall():
             self.rgb.append(image.copy())
             self.depth.append(depth.copy())
             self.balls.append(None)
+            self.uv.append(None)
             self.frames += 1
         
-        r, x, y, z, t = self.find_ball_impl(image, depth)
+        r, x, y, z, t, uv = self.find_ball_impl(image, depth)
         
         if self.save:
             self.balls[-1] = (r, x, y, z, t)
+            self.uv[-1] = uv
             
         return r, x, y, z, t
         
