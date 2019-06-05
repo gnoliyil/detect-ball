@@ -4,6 +4,7 @@
 import redis, time, signal, sys
 import os
 import json
+import numpy as np
 
 runloop = True
 counter = 0
@@ -43,30 +44,35 @@ file.write('timestamp\tmomentum based observer\tfiltered observer\tcontact compe
 r_server = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 # redis keys used in SAI2
-SIM_TIMESTAMP_KEY = "sai2::PandaApplication::simulation::timestamp";
-MOM_OBSERVER_LOGGING_KEY = "sai2::PandaApplication::controller::logging::momentum_based_observer";
-PROCESSED_OBSERVER_KEY = "sai2::PandaApplication::controller::logging::processed_observer";
-CONTACT_COMPENSATION_TORQUES_KEY = "sai2::PandaApplication::controller::logging::contact_compensation_torques";
-COMMAND_TORQUES_LOGGING_KEY = "sai2::PandaApplication::controller::logging::command_torques";
-DESIRED_POS_KEY = "sai2::PandaApplication::controller::logging::desired_position";
-CURRENT_POS_KEY = "sai2::PandaApplication::controller::logging::current_position";
-CONTACT_FORCE_KEY = "sai2::PandaApplication::simulation::current_contact_force";
-DESIRED_JOINT_KEY = "sai2::PandaApplication::controller::logging::desired_joint_position";
-CURRENT_JOINT_KEY = "sai2::PandaApplication::controller::logging::current_joint_position";
+# SIM_TIMESTAMP_KEY = "sai2::PandaApplication::simulation::timestamp";
+# MOM_OBSERVER_LOGGING_KEY = "sai2::PandaApplication::controller::logging::momentum_based_observer";
+# PROCESSED_OBSERVER_KEY = "sai2::PandaApplication::controller::logging::processed_observer";
+# CONTACT_COMPENSATION_TORQUES_KEY = "sai2::PandaApplication::controller::logging::contact_compensation_torques";
+# COMMAND_TORQUES_LOGGING_KEY = "sai2::PandaApplication::controller::logging::command_torques";
+# DESIRED_POS_KEY = "sai2::PandaApplication::controller::logging::desired_position";
+# CURRENT_POS_KEY = "sai2::PandaApplication::controller::logging::current_position";
+# CONTACT_FORCE_KEY = "sai2::PandaApplication::simulation::current_contact_force";
+# DESIRED_JOINT_KEY = "sai2::PandaApplication::controller::logging::desired_joint_position";
+# CURRENT_JOINT_KEY = "sai2::PandaApplication::controller::logging::current_joint_position";
 
+OPTI_TIMESTAMP_KEY = "sai2::optitrack::timestamp"
+OPTI_POS_KEY = "sai2::optitrack::pos_single_markers"
 
-r_server.set(MOM_OBSERVER_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(PROCESSED_OBSERVER_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(CONTACT_COMPENSATION_TORQUES_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(COMMAND_TORQUES_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(DESIRED_POS_KEY, json.dumps([0,0,0]))
-r_server.set(CURRENT_POS_KEY, json.dumps([0,0,0]))
-r_server.set(CONTACT_FORCE_KEY, json.dumps([0,0,0]))
-r_server.set(DESIRED_JOINT_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(CURRENT_JOINT_KEY, json.dumps([0,0,0,0,0,0,0]))
+r_server.set(OPTI_TIMESTAMP_KEY, json.dumps([0]))
+r_server.set(OPTI_POS_KEY, json.dumps([0]))
+
+# r_server.set(MOM_OBSERVER_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(PROCESSED_OBSERVER_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(CONTACT_COMPENSATION_TORQUES_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(COMMAND_TORQUES_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(DESIRED_POS_KEY, json.dumps([0,0,0]))
+# r_server.set(CURRENT_POS_KEY, json.dumps([0,0,0]))
+# r_server.set(CONTACT_FORCE_KEY, json.dumps([0,0,0]))
+# r_server.set(DESIRED_JOINT_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(CURRENT_JOINT_KEY, json.dumps([0,0,0,0,0,0,0]))
 
 # data logging frequency
-logger_frequency = 100.0  # Hz
+logger_frequency = 1000.0  # Hz
 logger_period = 1.0/logger_frequency
 t_init = time.time()
 t = t_init
@@ -81,6 +87,10 @@ while(runloop):
 	# tau_cmd = json.loads(r_server.get(COMMAND_TORQUES_LOGGING_KEY))
 	# x_des = json.loads(r_server.get(DESIRED_POS_KEY))
 	# x_curr = json.loads(r_server.get(CURRENT_POS_KEY))
+
+	opti_time = json.loads(r_server.get(OPTI_TIMESTAMP_KEY).decode("utf-8"))
+	opti_pos = json.loads(r_server.get(OPTI_POS_KEY).decode("utf-8"))
+
 
 	sim_time = json.loads(r_server.get(SIM_TIMESTAMP_KEY).decode("utf-8"))
 	r_mom = json.loads(r_server.get(MOM_OBSERVER_LOGGING_KEY).decode("utf-8"))
