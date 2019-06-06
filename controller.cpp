@@ -22,11 +22,11 @@ const string robot_file = "./resources/panda_arm.urdf";
 
 int state = JOINT_CONTROLLER;
 
-#define y_max	0.5
-#define y_min	-0.5
+#define y_max	0.4
+#define y_min	-0.4
 #define z_max	0.7
 #define z_min	0.25
-#define x_max	0.4
+#define x_max	0.5
 #define x_min	0.25
 #define yx_a	0.55
 #define yx_c	1.2
@@ -130,16 +130,16 @@ int main() {
 
 #ifdef USING_OTG
 	posori_task->_use_interpolation_flag = true;
-	posori_task->_otg->setMaxLinearVelocity(0.5);
-	posori_task->_otg->setMaxLinearAcceleration(1.0);
-	posori_task->_otg->setMaxLinearJerk(3.0);
+	posori_task->_otg->setMaxLinearVelocity(0.8);
+	posori_task->_otg->setMaxLinearAcceleration(4);
+	posori_task->_otg->setMaxLinearJerk(12);
 
 	posori_task->_otg->setMaxAngularVelocity(M_PI/3);
 	posori_task->_otg->setMaxAngularAcceleration(M_PI);
 	posori_task->_otg->setMaxAngularJerk(3*M_PI);
 #else
 	posori_task->_use_velocity_saturation_flag = true;
-	posori_task->_linear_saturation_velocity = 0.5;
+	posori_task->_linear_saturation_velocity = 0.7;
 	posori_task->_angular_saturation_velocity = M_PI/3;
 #endif
 	
@@ -153,15 +153,15 @@ int main() {
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	auto ori_task = new Sai2Primitives::OrientationTask(robot, control_link, control_point);
 
-#ifdef USING_OTG
-	joint_task->_use_interpolation_flag = true;
-	joint_task->_otg->setMaxVelocity(M_PI/3);
-	joint_task->_otg->setMaxAcceleration(M_PI);
-	joint_task->_otg->setMaxJerk(3*M_PI);
-#else
+// #ifdef USING_OTG
+// 	joint_task->_use_interpolation_flag = true;
+// 	joint_task->_otg->setMaxVelocity(M_PI/3);
+// 	joint_task->_otg->setMaxAcceleration(M_PI);
+// 	joint_task->_otg->setMaxJerk(3*M_PI);
+// #else
 	joint_task->_use_velocity_saturation_flag = true;
 	joint_task->_saturation_velocity = M_PI/3.0*Eigen::VectorXd::Ones(dof);
-#endif
+// #endif
 
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 	joint_task->_kp = 50.0;
