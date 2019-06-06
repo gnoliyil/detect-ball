@@ -57,12 +57,10 @@ if __name__ == "__main__":
     OPTI_POS_KEY = "sai2::optitrack::pos_single_markers"
     r_server = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-    buffersize = 10
-    minpts = 2
+    buffersize = 20
+    minpts = 10
 
-    xbuff = RingBuffer(capacity=buffersize)
-    ybuff = RingBuffer(capacity=buffersize)
-    zbuff = RingBuffer(capacity=buffersize)
+    buff = RingBuffer(capacity=buffersize, dtype=(np.float64, 4))
 
     ptcount = 0
     prev_time = 0
@@ -72,44 +70,37 @@ if __name__ == "__main__":
     t_init = time.time()
     t = t_init
 
+    timeout_time = 1.5 # unit: second
+
     while runloop:
         t += pred_period
-        
+
         opti_time = json.loads(r_server.get(OPTI_TIMESTAMP_KEY).decode("utf-8"))
         poslist = r_server.get(OPTI_POS_KEY).decode("utf-8").split(";")
-        
+
         if opti_time != prev_time:
             opti_pos = json.loads("["+",".join(("".join(poslist)).split(" "))+"]")
             prev_time = opti_time
-            
-            Notfound = True
-            # print(len(poslist))
+
+            # remove all timeout points
+            while len(buff) > 0 and opti_time - buff[0, 3] >= timeout_time:
+                buff.popleft()
+
+            # check current point and add it to the end of buffer
             for i in range(len(poslist)):
                 pos = np.array([opti_pos[3*i+2], opti_pos[3*i], opti_pos[3*i+1]])
 
                 if pos[2] > 0.2 and pos[0] < 1.4 and pos[0] > -0.665 and pos[1] < -0.638 and pos[1] > -1.638:
-                    xbuff.appendleft(pos[0])
-                    ybuff.appendleft(pos[1])
-                    zbuff.appendleft(pos[2])
-                    # print("found")
-                    
+                    buff.append(np.array([pos[0], pos[1], pos[2], opti_time]).reshape(1, 4))
+
                     ptcount = min(ptcount + 1, buffersize)
-                    NotFound = False
                     if ptcount > minpts:
-                        xp = np.array(xbuff[:ptcount])
-                        yp = np.array(ybuff[:ptcount])
-                        zp = np.array(zbuff[:ptcount])
+                        xp = np.array(buff[:ptcount, 0])
+                        yp = np.array(buff[:ptcount, 1])
+                        zp = np.array(buff[:ptcount, 2])
                         yc, zc = predict(xp, yp, zp, r_server)
                         print(yc, zc)
                         break
-            # if Notfound:
-            #     ptcount = max(ptcount - 1, 0)
-                
-            # time.sleep(max(0.0,t-time.time()))
-            
-                    
-        
-        # time.sleep(max(0.0,t-time.time()))        
 
 
 # # In[4]:
@@ -138,7 +129,7 @@ if __name__ == "__main__":
 #     xbuff.appendleft(xhis[i])
 #     ybuff.appendleft(yhis[i])
 #     zbuff.appendleft(zhis[i])
-    
+
 #     ptcount = min(ptcount + 1, buffersize)
 
 #     if ptcount > minpts:
